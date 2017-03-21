@@ -32,7 +32,7 @@ App.tokens = App.cable.subscriptions.create(
       if (xmlhttp.readyState == XMLHttpRequest.DONE ) {
         if (xmlhttp.status == 200) {
           var response = JSON.parse(xmlhttp.response)
-          App.cable.subscriptions.remove({channel: "RoomChannel", room_id: roomToken});
+          // App.cable.subscriptions.remove({channel: "RoomChannel", room_id: roomToken});
           window.location.replace(response.url); // Redirect the current view
         }
         else if (xmlhttp.status == 400) {
