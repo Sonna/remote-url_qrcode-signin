@@ -1,10 +1,10 @@
 // app/assets/javascripts/channels/tokens.js
 
-var el = document.querySelectorAll('meta[name="room-token"]')[0];
-var roomToken = el.getAttribute('content');
+var el = document.querySelectorAll('meta[name="room-id"]')[0];
+var roomID = el.getAttribute('content');
 
 App.tokens = App.cable.subscriptions.create(
-  { channel: 'TokensChannel', room: roomToken }, {
+  { channel: 'TokensChannel', room_id: roomID }, {
 
   received: function(data) {
     this.loginUser(data);
@@ -30,7 +30,7 @@ App.tokens = App.cable.subscriptions.create(
         if (xmlhttp.status == 200) {
           var response = JSON.parse(xmlhttp.response)
           App.cable.subscriptions.remove({ channel: "TokensChannel",
-                                           room: roomToken });
+                                           room_id: roomID });
           window.location.replace(response.url); // Redirect the current view
         }
         else if (xmlhttp.status == 400) {

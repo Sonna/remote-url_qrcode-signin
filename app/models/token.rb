@@ -11,15 +11,17 @@ class Token < ApplicationRecord
     end while self.class.exists?(value: value)
   end
 
-  def qr_code
-    RQRCode::QRCode.new(
-      Rails.application.routes.url_helpers.url_for(
-        host: "localhost:3000",
-        controller: "tokens",
-        action: "consume",
-        user_token: value
-        # room_token: value
-      )
+  def qr_code(room_id)
+    RQRCode::QRCode.new(consume_url(room_id))
+  end
+
+  def consume_url(room_id)
+    Rails.application.routes.url_helpers.url_for(
+      host: "localhost:3000",
+      controller: "tokens",
+      action: "consume",
+      user_token: value,
+      room_id: room_id
     )
   end
 end

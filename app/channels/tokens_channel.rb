@@ -4,6 +4,6 @@
 
 class TokensChannel < ApplicationCable::Channel
   def subscribed
-    stream_from "token_logins_#{params[:room]}" if params[:room]
+    stream_from "token_logins_#{params[:room_id]}" if params[:room_id]
   end
 end
