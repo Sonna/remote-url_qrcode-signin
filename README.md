@@ -1,3 +1,7 @@
+This application was in response to this StackOverflow question:
+
+- [ruby on rails - How can I implement Whatsapp life QR code authentication - Stack Overflow](http://stackoverflow.com/questions/42879668/how-can-i-implement-whatsapp-life-qr-code-authentication/42881593#42881593)
+
 # A demonstration of what this application does
 
 This application allows an User to send a POST request to login an User from an

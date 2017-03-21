@@ -105,30 +105,288 @@ Then display this QRCode somewhere in your application
     # e.g. app/views/tokens/show.html.erb
     <%= @external_token.qr_code(@room_id).as_html.html_safe %>
 
+I also hide the current `@room_id` within the `<head>` tags of the application
+using the following:
+
+    # e.g. app/views/tokens/show.html.erb
+    <%= content_for :head, @room_id.html_safe %>
+
+    # app/views/layouts/application.html.erb
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>QrcodeApp</title>
+        <!-- ... -->
+
+        <%= tag("meta", name: "room-id", content: content_for(:head))  %>
+        <!-- ... -->
+      </head>
+
+      <body>
+        <%= yield %>
+      </body>
+    </html>
+
 Then wire up your application's routes and controllers to process that generated
-and encoded QRCode URL
+and encoded QRCode URL.
+
+For Routes we need:
+
+1. Route to present the QRCode tokens; `"token#show"`
+2. Route to consume / process the QRCode tokens; `"token#consume"`
+3. Route to log the User in with, over AJAX; `"sessions@create"`
+
+We will also need some way of opening a connection within the display Token page
+that can be interacted with to force it to login, for that we will need:
+
+    mount ActionCable.server => "/cable"
+
+_This will require Rails 5 and ActionCable to implment, otherwise another
+Pub/Sub solution; like Faye; will need to be used instead with older versions._
+
+All together the routes look kind of like this:
 
     # config/routes.rb
     Rails.application.routes.draw do
       # ...
-      get "/login", to: "sessions#new"
+
+      # Serve websocket cable requests in-process
+      mount ActionCable.server => "/cable"
+
+      get "/token-login", to: "tokens#consume"
+      post "/login", to: "sessions#create"
+      get "/logout", to: "sessions#destroy"
+      get "welcome", to: "welcome#show"
+
+      root "tokens#show"
     end
 
-    # app/controller/sessions_controller.rb
-    class SessionsController < ApplicationController
-      def create
-        user = User.find_by(email: params[:email], token: params[:token])
-        if user
-          session[:user_id] = user.id # login user
-          user.update(token: nil) # nullify token, so it cannot be reused
-          redirect_to user
+Then Controllers for those actions are as follows:
+
+    # app/controller/tokens_controller.rb
+    class TokensController < ApplicationController
+      def show
+        # Ignore this, its just randomly, grabbing an User for their Token. You
+        # would handle this in the mobile application the User is logged into
+        session[:user_id] = User.all.sample.id
+        @user = User.find(session[:user_id])
+        # @user_token = Token.create(type: "ExternalToken", user: @user)
+        @user_token = ExternalToken.create(user: @user)
+
+        # keep this line
+        @room_id = SecureRandom.urlsafe_base64
+      end
+
+      def consume
+        room_id = params[:room_id]
+        user_token = params[:user_token] # This will come from the Mobile App
+
+        if user_token && room_id
+          # user = Token.find_by(type: "ExternalToken", value: user_token).user
+          # password_token = Token.create(type: "InternalToken", user_id: user.id)
+          user = ExternalToken.find_by(value: user_token).user
+          password_token = InternalToken.create(user: user)
+
+          # The `user.password_token` is another random token that only the
+          # application knows about and will be re-submitted back to the application
+          # to confirm the login for that user in the open room session
+          ActionCable.server.broadcast("token_logins_#{room_id}",
+                                       user_email: user.email,
+                                       user_password_token: password_token.value)
+          head :ok
         else
-          redirect_to root_path
+          redirect_to "tokens#show"
         end
       end
     end
 
+The Tokens Controller `show` action primarily generates the `@room_id` value for
+reuse in the view templates. The rest of the code in the `show` is just used to
+demonstrate this kind of application.
 
+The Tokens Controller `consume` action requires a `room_id` and `user_token` to
+proceed, otherwise redirects the User back to QRCode sign in page. When they are
+provided it then generates an `InternalToken` that is associated with the User
+of the `ExternalToken` that it will then use to push a notification / event to
+all rooms with said `room_id` (where there is only one that is unique to the
+User viewing the QRCode page that generate this URL) whilst providing the
+necessary authentication information for a User (or in this case our
+application) to log into the application without a _password_, by quickly
+generating an `InternalToken` to use instead.
+
+_You could also pass in the User e-mail as param if the external application
+knows about it, rather than assuming its correct in this demonstration example._
+
+For the Sessions Controller, as follows:
+
+    # app/controller/sessions_controller.rb
+    class SessionsController < ApplicationController
+      def create
+        user = User.find_by(email: params[:user_email])
+        internal_token = InternalToken.find_by(value: params[:user_password_token])
+        #   Token.find_by(type: "InternalToken", value: params[:user_password_token])
+
+        if internal_token.user == user
+          session[:user_id] = user.id # login user
+
+          # nullify token, so it cannot be reused
+          internal_token.destroy
+
+          # reset User internal application password (maybe)
+          # user.update(password_token: SecureRandom.urlsafe_base64)
+
+          respond_to do |format|
+            format.json { render json: { success: true, url: welcome_url } }
+            format.html { redirect_to welcome_url }
+          end
+        else
+          redirect_to root_path
+        end
+      end
+
+      def destroy
+        session.delete(:user_id)
+        session[:user_id] = nil
+        @current_user = nil
+        redirect_to root_path
+      end
+    end
+
+This Sessions Controller takes in the `user_email` and `user_password_token` to
+make sure that these two match the same User internally before proceeding to
+login. Then creates the user session with `session[:user_id]` and destroys the
+`internal_token`, since it was a one time use only and is only used internally
+within the application for this kind of authentication.
+
+As well as, some kind of Welcome Controller for the Sessions `create` action to
+redirect to after logging in
+
+    # app/controller/welcome_controller.rb
+    class WelcomeController < ApplicationController
+      def show
+        @user = current_user
+        redirect_to root_path unless current_user
+      end
+
+      private
+
+      def current_user
+        @current_user ||= User.find(session[:user_id])
+      end
+    end
+
+Since this aplication uses
+[ActionCable](http://edgeguides.rubyonrails.org/action_cable_overview.html), we
+have already mounted the `/cable` path, now we need to setup a Channel that is
+unique to a given User. However, since the User is not logged in yet, we use the
+`room_id` value that was previously generated by the Tokens Controller `show`
+action since its random and unique.
+
+    # app/channels/tokens_channel.rb
+
+    # Subscribe to `"tokens"` channel
+    class TokensChannel < ApplicationCable::Channel
+      def subscribed
+        stream_from "token_logins_#{params[:room_id]}" if params[:room_id]
+      end
+    end
+
+That `room_id` was also embedded within the `<head>` (although it could a hidden
+`<div>` element or the `id` attribtue of the QRCode, its up to you), which means
+it can be pulled out to use in our JavaScript for receiving incoming boardcasts
+to that room/QRCode; e.g.
+
+    // app/assets/javascripts/channels/tokens.js
+
+    var el = document.querySelectorAll('meta[name="room-id"]')[0];
+    var roomID = el.getAttribute('content');
+
+    App.tokens = App.cable.subscriptions.create(
+      { channel: 'TokensChannel', room_id: roomID }, {
+
+      received: function(data) {
+        this.loginUser(data);
+      },
+
+      loginUser: function(data) {
+        var userEmail = data.user_email;
+        var userPasswordToken = data.user_password_token; // Mobile App's User token
+        var userData = {
+          user_email: userEmail,
+          user_password_token: userPasswordToken
+        };
+
+        // `csrf_meta_tags` value
+        var el = document.querySelectorAll('meta[name="csrf-token"]')[0];
+        var csrfToken = el.getAttribute('content');
+
+        var xmlhttp = new XMLHttpRequest();
+
+        // Handle POST response on `onreadystatechange` callback
+        xmlhttp.onreadystatechange = function() {
+          if (xmlhttp.readyState == XMLHttpRequest.DONE ) {
+            if (xmlhttp.status == 200) {
+              var response = JSON.parse(xmlhttp.response)
+              App.cable.subscriptions.remove({ channel: "TokensChannel",
+                                               room_id: roomID });
+              window.location.replace(response.url); // Redirect the current view
+            }
+            else if (xmlhttp.status == 400) {
+              alert('There was an error 400');
+            }
+            else {
+              alert('something else other than 200 was returned');
+            }
+          }
+        };
+
+        // Make User login POST request
+        xmlhttp.open(
+          "POST",
+          "<%= Rails.application.routes.url_helpers.url_for(
+            host: "localhost:3000", controller: "sessions", action: "create"
+          ) %>",
+          true
+        );
+
+        // Add necessary headers (like `csrf_meta_tags`) before sending POST request
+        xmlhttp.setRequestHeader('X-CSRF-Token', csrfToken);
+        xmlhttp.setRequestHeader("Content-Type", "application/json");
+        xmlhttp.send(JSON.stringify(userData));
+      }
+    });
+
+Really there is only two actions in this ActionCable subscription;
+
+1. `received` required by ActionCable to handle incoming requests/events, and
+2. `loginUser` our custom function
+
+`loginUser` does the following:
+
+- Handles incoming data to build a new data object `userData` to POST back to
+  our application, which contains User information; `user_email` &
+  `user_password_token`; required to login over AJAX using an authentication
+  Token as the password (since its somewhat insecure, and passwords are usually
+  hashed; meaning that they unknown since they cannot be reversed)
+
+- Creates a `new XMLHttpRequest()` object to POST without jQuery, that sends a
+  POST request at the JSON login URL with the `userData` as login information,
+  whilst also appending the current HTML page CSRF token; e.g.
+
+    <%= csrf_meta_tags %>
+
+  _Otherwise the JSON request would fail without it_
+
+- The `xmlhttp.onreadystatechange` callback function that is executed on a
+  response back from the `xmlhttp.send(...)` function call. It will unsubscribe
+  the User from the current room, since it is no longer needed, and redirect the
+  current page to the "Welcomw page" it received back in its response. Otherwise
+  it alerts the User something failed or went wrong
+
+This will produce the following kind of application
+
+_An image demonstrating the application, using multiple private browser sessions
+to log in the other request browsers via their given URLs._
 
 The only this solution does not address is the rolling room token generation,
 which would either require either a JavaScript library to generate/regenerate
@@ -140,6 +398,7 @@ used so that only it can receive mesages from, after a certain amount of time.
 
 **References:**
 
+- [Action Cable Overview — Ruby on Rails Guides](http://edgeguides.rubyonrails.org/action_cable_overview.html)
 - [whomwah/rqrcode: A Ruby library that encodes QR Codes](https://github.com/whomwah/rqrcode)
 - [Module: SecureRandom (Ruby 2_2_1)](https://ruby-doc.org/stdlib-2.2.1/libdoc/securerandom/rdoc/SecureRandom.html#method-c-urlsafe_base64)
 - [#352 Securing an API - RailsCasts](http://railscasts.com/episodes/352-securing-an-api?view=asciicast)

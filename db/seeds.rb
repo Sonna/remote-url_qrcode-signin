@@ -5,8 +5,6 @@
 #
 #   movies = Movie.create([{ name: 'Star Wars' }, { name: 'Lord of the Rings' }])
 #   Character.create(name: 'Luke', movie: movies.first)
-require "securerandom"
-
 User.create(name: "Brooke Gibson",     email: "angelo_stark@daugherty.io")
 User.create(name: "Damaris Mayer",     email: "esther_paucek@beahanhomenick.info")
 User.create(name: "Suzanne Metz",      email: "anabel@hermanlabadie.net")
