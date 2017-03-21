@@ -1,3 +1,17 @@
+# A demonstration of what this application does
+
+This application allows an User to send a POST request to login an User from an
+external application (like a mobile app or external service) within the browser
+they are looking at. However, for demonstration purposes it is a GET request,
+and the external API token that would be used as well as generated with an
+external service or mobile application is attached to submitted URL, when it
+should appended somewhere else in order to properly authenticate.
+
+![Signing in from remote/different borwsers](doc/sign_in_remotely_via_qr_code_version2.mov.gif)
+
+_The QRCode is used to hide the presented URL that is displayed in this example
+application._
+
 # README
 
 This README would normally document whatever steps are necessary to get the
