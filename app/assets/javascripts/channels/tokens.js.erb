@@ -5,10 +5,8 @@
 
 var el = document.querySelectorAll('meta[name="room-token"]')[0];
 var roomToken = el.getAttribute('content');
-console.log(roomToken);
 
 App.tokens = App.cable.subscriptions.create(
-  // { channel: 'TokensChannel', room: "CONSTANT_ROOM_NAME" }, {
   { channel: 'TokensChannel', room: roomToken }, {
 
   received: function(data) {
@@ -16,30 +14,25 @@ App.tokens = App.cable.subscriptions.create(
   },
 
   loginUser: function(data) {
-    // var token = data.token_value;
     var userEmail = data.user_email;
-    var userPasswordToken = data.user_password_token;
+    var userPasswordToken = data.user_password_token; // Mobile App's User token
     var userData = {
       user_email: userEmail,
       user_password_token: userPasswordToken
     };
 
-    // var userData = new FormData();
-    // userData.append('user_email', userEmail);
-    // userData.append('user_password_token', userPasswordToken);
-
+    // `csrf_meta_tags` value
     var el = document.querySelectorAll('meta[name="csrf-token"]')[0];
     var csrfToken = el.getAttribute('content');
 
     var xmlhttp = new XMLHttpRequest();
 
+    // Handle POST response on `onreadystatechange` callback
     xmlhttp.onreadystatechange = function() {
       if (xmlhttp.readyState == XMLHttpRequest.DONE ) {
         if (xmlhttp.status == 200) {
           var response = JSON.parse(xmlhttp.response)
-          window.location.replace(response.url);
-          console.log(response);
-          console.log(response.url);
+          window.location.replace(response.url); // Redirect the current view
         }
         else if (xmlhttp.status == 400) {
           alert('There was an error 400');
@@ -50,6 +43,7 @@ App.tokens = App.cable.subscriptions.create(
       }
     };
 
+    // Make User login POST request
     xmlhttp.open(
       "POST",
       "<%= Rails.application.routes.url_helpers.url_for(
@@ -58,13 +52,9 @@ App.tokens = App.cable.subscriptions.create(
       true
     );
 
-    // xhr.setRequestHeader('X-CSRF-Token', $('meta[name="csrf-token"]').attr('content'));
+    // Add necessary headers (like `csrf_meta_tags` value) before sending POST request
     xmlhttp.setRequestHeader('X-CSRF-Token', csrfToken);
-    // xmlhttp.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
     xmlhttp.setRequestHeader("Content-Type", "application/json");
-    console.log(userData);
-    // xmlhttp.send(userData);
     xmlhttp.send(JSON.stringify(userData));
-    console.log(xmlhttp);
   }
 });

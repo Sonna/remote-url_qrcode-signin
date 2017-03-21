@@ -1,43 +1,37 @@
 class TokensController < ApplicationController
   def show
-    session[:user_id] = User.all.sample.id # ignore this, its just randomly
-                                           # grabbing an User
+    # Ignore this, its just randomly, grabbing an User for their Token. You
+    # would handle this in the mobile application the User is logged into
+    session[:user_id] = User.all.sample.id
     @user = User.find(session[:user_id])
-    Token.find_by(user: @user).destroy if Token.find_by(user: @user) # cleanup old tokens
     @token = Token.create(user: @user)
+
+    # keep this line
     @room_token = SecureRandom.urlsafe_base64
   end
 
   def consume
-    token_value = params[:token]
     room_token = params[:room_token]
-    # room_guid = params[:room_guid]
-    token = Token.find_by(value: token_value)
+    user_token = params[:user_token] # This will come from the Mobile App
 
-    # p ["token: #{token_value}", "room_guid: #{room_guid}"]
+    if user_token && room_token
+      user = Token.find_by(value: user_token).user
 
-    if token # && room_guid
-      # current_user = User.find(session[:user_id])
-      user = token.user
-
-      # ActionCable.server.broadcast channel: "token_logins", room: token_value,
-      # ActionCable.server.broadcast "token_logins_#{token_value}",
-      # ActionCable.server.broadcast "token_logins_CONSTANT_ROOM_NAME",
-      ActionCable.server.broadcast "token_logins_#{room_token}",
-        user_email: user.email,
-        user_password_token: user.password_token
-        # authentication: true,
-        # token: token_value,
+      # The `user.password_token` is another random token that only the
+      # application knows about and will be re-submitted back to the application
+      # to confirm the login for that user in the open room session
+      ActionCable.server.broadcast("token_logins_#{room_token}",
+                                   user_email: user.email,
+                                   user_password_token: user.password_token)
       head :ok
     else
-      Token.find_by(value: token_value).destroy # invalidate Token value
       redirect_to "tokens#show"
     end
   end
+end
 
   # Here we are calling the `#broadcast` method on our Action Cable server, and passing it arguments:
   # - 'token_logins', the name of the channel to which we are broadcasting.
   # - Some content that will be sent through the channel as JSON:
   #   - `authentication`, set to the content of the message we just created.
   #   - `user`, set to the username of the user who created the message.
-end

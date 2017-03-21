@@ -17,8 +17,8 @@ class Token < ApplicationRecord
         host: "localhost:3000",
         controller: "tokens",
         action: "consume",
-        # email: email,
-        token: value
+        user_token: value
+        # room_token: value
       )
     )
   end

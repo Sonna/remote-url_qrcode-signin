@@ -5,9 +5,9 @@ Rails.application.routes.draw do
   mount ActionCable.server => "/cable"
 
   post "/login", to: "sessions#create"
+  get "/logout", to: "sessions#destroy"
   get "/token-login", to: "tokens#consume"
   root "tokens#show"
 
-  # get "/users/:id", to: "users#show"
-  resources :users, only: [:show]
+  get "welcome", to: "welcome#show"
 end
