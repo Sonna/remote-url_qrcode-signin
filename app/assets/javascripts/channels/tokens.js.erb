@@ -1,8 +1,5 @@
 // app/assets/javascripts/channels/tokens.js
 
-// App.tokens = App.cable.subscriptions.create(
-//   { channel: 'TokensChannel', room: guid() }, {
-
 var el = document.querySelectorAll('meta[name="room-token"]')[0];
 var roomToken = el.getAttribute('content');
 
@@ -32,7 +29,8 @@ App.tokens = App.cable.subscriptions.create(
       if (xmlhttp.readyState == XMLHttpRequest.DONE ) {
         if (xmlhttp.status == 200) {
           var response = JSON.parse(xmlhttp.response)
-          // App.cable.subscriptions.remove({channel: "RoomChannel", room_id: roomToken});
+          App.cable.subscriptions.remove({ channel: "TokensChannel",
+                                           room_id: roomToken });
           window.location.replace(response.url); // Redirect the current view
         }
         else if (xmlhttp.status == 400) {
@@ -53,7 +51,7 @@ App.tokens = App.cable.subscriptions.create(
       true
     );
 
-    // Add necessary headers (like `csrf_meta_tags` value) before sending POST request
+    // Add necessary headers (like `csrf_meta_tags`) before sending POST request
     xmlhttp.setRequestHeader('X-CSRF-Token', csrfToken);
     xmlhttp.setRequestHeader("Content-Type", "application/json");
     xmlhttp.send(JSON.stringify(userData));
