@@ -13,6 +13,7 @@
 ActiveRecord::Schema.define(version: 20170320215753) do
 
   create_table "tokens", force: :cascade do |t|
+    t.string   "type"
     t.string   "value"
     t.integer  "user_id"
     t.datetime "created_at", null: false
