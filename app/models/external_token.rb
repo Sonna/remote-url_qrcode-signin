@@ -1,0 +1,1 @@
+class ExternalToken < Token; end

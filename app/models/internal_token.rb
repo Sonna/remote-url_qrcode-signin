@@ -1,0 +1,1 @@
+class InternalToken < Token; end

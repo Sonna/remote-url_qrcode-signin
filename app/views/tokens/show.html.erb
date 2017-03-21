@@ -1,7 +1,7 @@
 <% # = tag("meta", name: "room-token", content: content_for(:head))  %>
 <%= content_for :head, @room_token.html_safe %>
 
-<%= @token.qr_code.as_html.html_safe %>
+<%= @user_token.qr_code.as_html.html_safe %>
 
 <p>You would hide this url within the QR code:</p>
 <%=
@@ -10,7 +10,7 @@
     controller: "tokens",
     action: "consume",
     # email: email,
-    user_token: @token.value,
+    user_token: @user_token.value,
     room_token: @room_token
   )
   # `user_token` is something your mobile application would append to the URL
