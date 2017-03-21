@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WhatQrcodeApp</title>
+    <%= csrf_meta_tags %>
+
+    <%= action_cable_meta_tag %>
+    <%= tag("meta", name: "room-token", content: content_for(:head))  %>
+
+    <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+    <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+  </head>
+
+  <body>
+    <%= yield %>
+  </body>
+</html>

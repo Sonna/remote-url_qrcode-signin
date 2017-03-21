@@ -1,0 +1,25 @@
+<%= content_for :head, @room_token.html_safe %>
+
+<%= @token.qr_code.as_html.html_safe %>
+<%=
+ url_for(
+    host: "localhost:3000",
+    controller: "tokens",
+    action: "consume",
+    # email: email,
+    token: @token.value,
+    room_token: @room_token
+  )
+%>
+<%=
+  # RQRCode::QRCode.new(
+  #   url_for(
+  #     host: "localhost:3000",
+  #     controller: "tokens",
+  #     action: "consume",
+  #     # email: email,
+  #     token: value,
+  #     room: room_guid
+  #   )
+  # ).to_html.html_safe
+%>
